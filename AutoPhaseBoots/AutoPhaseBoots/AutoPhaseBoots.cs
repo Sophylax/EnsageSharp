@@ -28,36 +28,33 @@
 
         public static void GameOnUpdate(EventArgs args)
         {
-            if (!Utils.SleepCheck("phaseSleep"))
+            var localPlayer = ObjectMgr.LocalPlayer;
+            if (localPlayer == null)
             {
                 return;
             }
 
-            var localHero = ObjectMgr.LocalHero;
-            if (localHero == null)
-            {
-                return;
-            }
+            var phaseCollection =
+                ObjectMgr.GetEntities<Item>().Where(item => item.Name == "item_phase_boots" && item.Owner is Unit && ((Unit)item.Owner).IsControllable);
 
-            var phase = localHero.FindItem("item_phase_boots");
-            if (phase == null || !phase.CanBeCasted())
+            foreach (var phaseBoots in phaseCollection)
             {
-                return;
-            }
+                var owner = phaseBoots.Owner as Unit;
 
-            var phaseBuff = localHero.Modifiers.FirstOrDefault(modifier => modifier.Name == "modifier_item_phase_boots_active");
-            if (phaseBuff != null && phaseBuff.RemainingTime > (Game.AvgPing + MaximumBuffOverlap))
-            {
-                return;
-            }
+                if (owner == null || !Utils.SleepCheck("phaseSleep" + owner.Handle) || !phaseBoots.CanBeCasted() || owner.NetworkActivity != MoveActivity || owner.IsInvisible())
+                {
+                    continue;
+                }
 
-            if (localHero.NetworkActivity != MoveActivity)
-            {
-                return;
-            }
+                var phaseBuff = owner.Modifiers.FirstOrDefault(modifier => modifier.Name == "modifier_item_phase_boots_active");
+                if (phaseBuff != null && phaseBuff.RemainingTime > (Game.AvgPing + MaximumBuffOverlap))
+                {
+                    continue;
+                }
 
-            phase.UseAbility();
-            Utils.Sleep(Game.AvgPing + SleepConstant, "phaseSleep");
+                phaseBoots.UseAbility();
+                Utils.Sleep(Game.AvgPing + SleepConstant, "phaseSleep" + owner.Handle);
+            }
         }
 
         #endregion
